@@ -1,3 +1,6 @@
 # Google OAuth credentials
 client_secret.json
 token.json
+
+# Scripts with credentials
+RunSyncOddsparksSave.cmd
