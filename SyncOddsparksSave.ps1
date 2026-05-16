@@ -14,6 +14,7 @@ param(
 
     [ValidateSet("auto", "status", "pull", "push", "login", "logout")] [string] $Mode = "auto",
     [string] $LocalDir = (Join-Path $env:LOCALAPPDATA "Oddsparks\Full\Savegames"),
+    [string] $BackupDir = (Join-Path $env:LOCALAPPDATA "Oddsparks\Full\SavegamesBackups"),
     [int] $RedirectPort = 53682,
     [switch] $DryRun
 )
@@ -354,12 +355,26 @@ function ChildFile($Children, [string] $Name) {
     return $x[0]
 }
 
+function Backup([string] $Label) {
+    if (-not (Test-Path -LiteralPath $LocalDir)) { return }
+    $files = @(Get-ChildItem -LiteralPath $LocalDir -File -ErrorAction SilentlyContinue)
+    if ($files.Count -eq 0) { return }
+    $stamp = (Get-Date).ToString("yyyy-MM-dd_HH-mm-ss")
+    $safeLabel = ($Label -replace "[^A-Za-z0-9._-]", "_")
+    $zipPath = Join-Path $BackupDir "${stamp}__${safeLabel}.zip"
+    Info "Backup: $zipPath"
+    if ($DryRun) { return }
+    if (-not (Test-Path -LiteralPath $BackupDir)) { New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null }
+    Compress-Archive -LiteralPath ($files | ForEach-Object { $_.FullName }) -DestinationPath $zipPath -CompressionLevel Optimal
+}
+
 function Pull($R) {
     if ($null -eq $R) { throw "No remote snapshot to pull." }
     $save = ChildFile $R.Children "$World.sav"
     $meta = ChildFile $R.Children "${World}_meta.sav"
     if ($null -eq $save -or $null -eq $meta) { throw "Remote snapshot is incomplete." }
     Info "Decision: PULL $($R.Folder.name)"
+    Backup "pull"
     if ($DryRun) { return }
     if (-not (Test-Path -LiteralPath $LocalDir)) { New-Item -ItemType Directory -Path $LocalDir | Out-Null }
     DownloadFile $save.id (Join-Path $LocalDir "$World.sav")
@@ -392,6 +407,7 @@ function Push($Ls, $R) {
     }
 
     Info "Decision: PUSH $folder"
+    Backup "push"
     if ($DryRun) { return }
 
     $wf = WorldFolder $true
