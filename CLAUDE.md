@@ -8,7 +8,6 @@ System opiera się na snapshotach. Każdy snapshot to osobny folder zawierający
 
 ```text
 Oddsparks: An Automation Adventure/
-├── README.md
 └── Saves/
     └── NazwaZapisu/
         ├── 2026-05-09_22-18-43__Wiktor/
