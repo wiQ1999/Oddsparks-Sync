@@ -1,9 +1,9 @@
 ﻿#requires -version 5.1
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory=$true)] [string] $World,
-    [Parameter(Mandatory=$true)] [string] $Player,
-    [Parameter(Mandatory=$true)] [string] $FolderUrl,
+    [Parameter(Mandatory = $true)] [string] $World,
+    [Parameter(Mandatory = $true)] [string] $Player,
+    [Parameter(Mandatory = $true)] [string] $FolderUrl,
 
     # Recommended: downloaded OAuth Desktop app JSON from Google Cloud.
     [string] $ClientJson = "",
@@ -85,7 +85,8 @@ function ErrorText($Exception) {
                     $body = $reader.ReadToEnd()
                     if (-not [string]::IsNullOrWhiteSpace($body)) { return "$msg`n$body" }
                 }
-            } catch { }
+            }
+            catch { }
         }
     }
     return $msg
@@ -166,15 +167,15 @@ function GoogleLogin {
         $verifier = RandomB64Url 48
         $state = RandomB64Url 24
         $pairs = @{
-            client_id = $script:OAuthClientId
-            redirect_uri = $redirectUri
-            response_type = "code"
-            scope = $DriveScope
-            access_type = "offline"
-            prompt = "consent"
-            code_challenge = (CodeChallenge $verifier)
+            client_id             = $script:OAuthClientId
+            redirect_uri          = $redirectUri
+            response_type         = "code"
+            scope                 = $DriveScope
+            access_type           = "offline"
+            prompt                = "consent"
+            code_challenge        = (CodeChallenge $verifier)
             code_challenge_method = "S256"
-            state = $state
+            state                 = $state
         }
         $authUrl = $AuthUri + "?" + (FormBody $pairs)
         Start-Process $authUrl | Out-Null
@@ -195,10 +196,10 @@ function GoogleLogin {
         if ([string]::IsNullOrWhiteSpace($code)) { throw "Google OAuth did not return authorization code." }
 
         $token = TokenRequest @{
-            code = $code
+            code          = $code
             code_verifier = $verifier
-            redirect_uri = $redirectUri
-            grant_type = "authorization_code"
+            redirect_uri  = $redirectUri
+            grant_type    = "authorization_code"
         }
 
         if ([string]::IsNullOrWhiteSpace([string](Prop $token "refresh_token"))) {
@@ -206,12 +207,12 @@ function GoogleLogin {
         }
 
         SaveToken ([ordered]@{
-            access_token = $token.access_token
-            refresh_token = $token.refresh_token
-            expires_at = (Get-Date).ToUniversalTime().AddSeconds([int]$token.expires_in - 60).ToString("o")
-            token_type = (Prop $token "token_type")
-            scope = (Prop $token "scope")
-        })
+                access_token  = $token.access_token
+                refresh_token = $token.refresh_token
+                expires_at    = (Get-Date).ToUniversalTime().AddSeconds([int]$token.expires_in - 60).ToString("o")
+                token_type    = (Prop $token "token_type")
+                scope         = (Prop $token "scope")
+            })
         Info "Google login saved."
     }
     finally {
@@ -235,12 +236,12 @@ function AccessToken {
 
     $new = TokenRequest @{ refresh_token = $refresh; grant_type = "refresh_token" }
     SaveToken ([ordered]@{
-        access_token = $new.access_token
-        refresh_token = $refresh
-        expires_at = (Get-Date).ToUniversalTime().AddSeconds([int]$new.expires_in - 60).ToString("o")
-        token_type = (Prop $new "token_type")
-        scope = (Prop $new "scope")
-    })
+            access_token  = $new.access_token
+            refresh_token = $refresh
+            expires_at    = (Get-Date).ToUniversalTime().AddSeconds([int]$new.expires_in - 60).ToString("o")
+            token_type    = (Prop $new "token_type")
+            scope         = (Prop $new "scope")
+        })
     return $new.access_token
 }
 
@@ -395,14 +396,14 @@ function Push($Ls, $R) {
     if ($null -ne $Ls) { $source = $Ls.Sync.snapshot.folder_name }
 
     $sync = [ordered]@{
-        schema_version = 2
-        world = [ordered]@{ name = $World }
-        files = [ordered]@{
+        schema_version  = 2
+        world           = [ordered]@{ name = $World }
+        files           = [ordered]@{
             save_file = [ordered]@{ name = "$World.sav"; sha256 = (ShaFile $savePath) }
             meta_file = [ordered]@{ name = "${World}_meta.sav"; sha256 = (ShaFile $metaPath) }
             sync_file = [ordered]@{ name = $syncName }
         }
-        snapshot = [ordered]@{ folder_name = $folder; created_at = $now.ToString("yyyy-MM-ddTHH:mm:sszzz"); created_by = $Player }
+        snapshot        = [ordered]@{ folder_name = $folder; created_at = $now.ToString("yyyy-MM-ddTHH:mm:sszzz"); created_by = $Player }
         source_snapshot = [ordered]@{ folder_name = $source }
     }
 
@@ -424,6 +425,51 @@ function Push($Ls, $R) {
         Info "Push complete."
     }
     finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+}
+
+function ConflictPrompt {
+    Write-Host "  [1] Push   - upload your local save to Google Drive" -ForegroundColor Cyan
+    Write-Host "  [2] Pull   - download the remote save to your machine" -ForegroundColor Cyan
+    Write-Host "  [3] Cancel - do nothing and exit  [Esc]" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Choose [1/2/3] or type push/pull/cancel: " -NoNewline
+
+    $buffer = ""
+    while ($true) {
+        $key = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        $vk = $key.VirtualKeyCode
+
+        if ($vk -eq 27) { Write-Host ""; return "cancel" }
+
+        if ($vk -eq 13) {
+            Write-Host ""
+            $val = $buffer.Trim().ToLower()
+            if ($val -in @("1", "push"))            { return "push" }
+            if ($val -in @("2", "pull"))            { return "pull" }
+            if ($val -in @("3", "cancel")) { return "cancel" }
+            $buffer = ""
+            Warn "Invalid choice. Type 1, 2, 3, push, pull or cancel."
+            Write-Host "Choose [1/2/3] or type push/pull/cancel: " -NoNewline
+            continue
+        }
+
+        if ($vk -eq 8) {
+            if ($buffer.Length -gt 0) {
+                $buffer = $buffer.Substring(0, $buffer.Length - 1)
+                Write-Host "`b `b" -NoNewline
+            }
+            continue
+        }
+
+        $ch = [string]$key.Character
+        if ($ch -match '[^\x00-\x1f]') {
+            if ($buffer.Length -eq 0 -and $ch -eq "1") { Write-Host $ch; return "push" }
+            if ($buffer.Length -eq 0 -and $ch -eq "2") { Write-Host $ch; return "pull" }
+            if ($buffer.Length -eq 0 -and $ch -eq "3") { Write-Host $ch; return "cancel" }
+            $buffer += $ch
+            Write-Host $ch -NoNewline
+        }
+    }
 }
 
 function Decision($Ls, $R) {
@@ -489,8 +535,12 @@ try {
     if ($d -eq "push") { Push $ls $rs; exit 0 }
 
     Status $ls $rs $d
-    Fail "Conflict: local save changed, but Google Drive also has a newer snapshot. Use -Mode pull or -Mode push manually."
-    exit 2
+    Warn "Conflict: local save changed, but Google Drive also has a newer snapshot."
+    Write-Host ""
+    $choice = ConflictPrompt
+    if ($choice -eq "cancel") { Info "Cancelled."; exit 0 }
+    if ($choice -eq "push")   { Push $ls $rs; exit 0 }
+    if ($choice -eq "pull")   { Pull $rs; exit 0 }
 }
 catch {
     Fail $_.Exception.Message
