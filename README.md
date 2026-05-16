@@ -51,6 +51,22 @@ RunSyncOddsparksSave.cmd -Mode pull
 
 Flaga `-DryRun` pokazuje decyzję bez wykonywania żadnych operacji na plikach.
 
+### Backup (`-BackupDir`)
+
+Przed każdą operacją pull i push skrypt automatycznie tworzy backup całego folderu `Savegames` jako plik ZIP:
+
+```
+%LOCALAPPDATA%\Oddsparks\Full\SavegamesBackups\2026-05-16_21-30-00__pull.zip
+```
+
+Domyślną lokalizację można zmienić:
+
+```bat
+RunSyncOddsparksSave.cmd -BackupDir "D:\MojeBackupy"
+```
+
+Przy `-DryRun` backup jest logowany, ale nie tworzony.
+
 ## Struktura Dysku Google
 
 ```

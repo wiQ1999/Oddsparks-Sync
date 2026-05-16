@@ -146,6 +146,25 @@ Przy ręcznym cofnięciu do starszej wersji należy:
 4. Skopiować odpowiadający mu plik synchronizacji JSON.
 5. Usunąć lokalne pliki synchronizacji JSON nowsze niż przywracany snapshot.
 
+## Backup automatyczny
+
+Przed każdą operacją modyfikującą lokalne pliki gry (pull, push) skrypt tworzy automatyczny backup całego folderu `Savegames` w postaci skompresowanego archiwum ZIP.
+
+Domyślna lokalizacja backupów:
+
+```text
+%LOCALAPPDATA%\Oddsparks\Full\SavegamesBackups\
+```
+
+Nazwa pliku ZIP:
+
+```text
+YYYY-MM-DD_HH-mm-ss__pull.zip
+YYYY-MM-DD_HH-mm-ss__push.zip
+```
+
+Lokalizację można zmienić parametrem `-BackupDir`. Przy fladze `-DryRun` backup jest tylko logowany, ale nie tworzony.
+
 ## Zasady bezpieczeństwa
 
 - Nie kopiuj plików, gdy gra jest uruchomiona.
